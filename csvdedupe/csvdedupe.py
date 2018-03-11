@@ -25,7 +25,7 @@ class CSVDedupe(csvhelpers.CSVCommand) :
                     # We need to get control of STDIN again.
                     # This is a UNIX/Mac OSX solution only
                     # http://stackoverflow.com/questions/7141331/pipe-input-to-python-program-and-later-get-input-from-user
-                    # 
+                    #
                     # Same question has a Windows solution
                     sys.stdin = open('/dev/tty')  # Unix only solution,
                 else:
@@ -94,7 +94,7 @@ class CSVDedupe(csvhelpers.CSVCommand) :
 
             fields = {variable.field for variable in deduper.data_model.primary_fields}
             unique_d, parents = exact_matches(data_d, fields)
-                
+
         else:
             # # Create a new deduper object and pass our data model to it.
             deduper = dedupe.Dedupe(self.field_definition)
@@ -115,7 +115,7 @@ class CSVDedupe(csvhelpers.CSVCommand) :
 
         # ## Clustering
 
-        # Find the threshold that will maximize a weighted average of our precision and recall. 
+        # Find the threshold that will maximize a weighted average of our precision and recall.
         # When we set the recall weight to 2, we are saying we care twice as much
         # about recall as we do precision.
         #

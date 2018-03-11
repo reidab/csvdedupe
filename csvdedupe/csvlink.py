@@ -112,14 +112,14 @@ class CSVLink(csvhelpers.CSVCommand):
                                                           % self.settings_file)
             with open(self.settings_file, 'rb') as f:
                 deduper = dedupe.StaticRecordLink(f)
-                
+
 
             fields = {variable.field for variable in deduper.data_model.primary_fields}
             (nonexact_1,
              nonexact_2,
              exact_pairs) = exact_matches(data_1, data_2, fields)
-            
-            
+
+
         else:
             # # Create a new deduper object and pass our data model to it.
             deduper = dedupe.RecordLink(self.field_definition)
@@ -142,7 +142,7 @@ class CSVLink(csvhelpers.CSVCommand):
 
         # ## Clustering
 
-        # Find the threshold that will maximize a weighted average of our precision and recall. 
+        # Find the threshold that will maximize a weighted average of our precision and recall.
         # When we set the recall weight to 2, we are saying we care twice as much
         # about recall as we do precision.
         #
@@ -189,7 +189,7 @@ def exact_matches(data_1, data_2, match_fields):
 
     for key, record in data_1.items():
         record_hash = hash(tuple(record[f] for f in match_fields))
-        redundant[record_hash] = key        
+        redundant[record_hash] = key
 
     for key_2, record in data_2.items():
         record_hash = hash(tuple(record[f] for f in match_fields))
@@ -202,7 +202,7 @@ def exact_matches(data_1, data_2, match_fields):
 
     for key_1 in redundant.values():
         nonexact_1[key_1] = data_1[key_1]
-        
+
     return nonexact_1, nonexact_2, exact_pairs
 
 def launch_new_instance():
