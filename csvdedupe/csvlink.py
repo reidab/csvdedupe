@@ -70,12 +70,19 @@ class CSVLink(csvhelpers.CSVCommand):
         data_2 = {}
         # import the specified CSV file
 
-        data_1 = csvhelpers.readData(self.input_1, self.field_names_1,
-                                    delimiter=self.delimiter,
-                                    prefix='input_1')
-        data_2 = csvhelpers.readData(self.input_2, self.field_names_2,
-                                    delimiter=self.delimiter,
-                                    prefix='input_2')
+        data_1 = csvhelpers.readData(input_file=self.input_1,
+                                     field_names=self.field_names_1,
+                                     field_definition=self.field_definition,
+                                     delimiter=self.delimiter,
+                                     prefix='input_1')
+        data_2 = csvhelpers.readData(input_file=self.input_2,
+                                     field_names=self.field_names_2,
+                                     field_definition=self.field_definition,
+                                     delimiter=self.delimiter,
+                                     prefix='input_2')
+
+        internal_field_definition = csvhelpers.transformLatLongFieldDefinition(
+                self.field_definition)
 
         # sanity check for provided field names in CSV file
         for field in self.field_names_1:
@@ -100,7 +107,7 @@ class CSVLink(csvhelpers.CSVCommand):
         logging.info('imported %d rows from file 2', len(data_2))
 
         logging.info('using fields: %s' % [field['field']
-                                           for field in self.field_definition])
+                                           for field in internal_field_definition])
 
         # If --skip_training has been selected, and we have a settings cache still
         # persisting from the last run, use it in this next run.
@@ -122,7 +129,7 @@ class CSVLink(csvhelpers.CSVCommand):
 
         else:
             # # Create a new deduper object and pass our data model to it.
-            deduper = dedupe.RecordLink(self.field_definition)
+            deduper = dedupe.RecordLink(internal_field_definition)
 
             fields = {variable.field for variable in deduper.data_model.primary_fields}
             (nonexact_1,

@@ -5,6 +5,7 @@ import os
 import re
 import collections
 import logging
+from copy import deepcopy
 from io import StringIO, open
 import sys
 import platform
@@ -34,7 +35,7 @@ def preProcess(column):
     return column
 
 
-def readData(input_file, field_names, delimiter=',', prefix=None):
+def readData(input_file, field_names, field_definition=None, delimiter=',', prefix=None):
     """
     Read in our data from a CSV file and create a dictionary of records,
     where the key is a unique record ID and each value is a dict
@@ -47,16 +48,106 @@ def readData(input_file, field_names, delimiter=',', prefix=None):
 
     data = {}
 
-    reader = csv.DictReader(StringIO(input_file),delimiter=delimiter)
+    reader = csv.DictReader(StringIO(input_file), delimiter=delimiter)
     for i, row in enumerate(reader):
-        clean_row = {k: preProcess(v) for (k, v) in row.items() if k is not None}
-        if prefix:
-            row_id = u"%s|%s" % (prefix, i)
-        else:
-            row_id = i
-        data[row_id] = clean_row
+        row_id = u"%s|%s" % (prefix, i) if prefix else i
+        data[row_id] = parseLatLongFields(
+            {k: preProcess(v) for (k, v) in row.items() if k is not None},
+            field_definition)
 
     return data
+
+
+def parseLatLongFields(row, field_definition):
+    """
+    Parse any fields defined as LatLong, LongLat, Latitude, or Longitude
+    in the field definition into the format that dedupe expects them.
+
+    LongLat and LatLong fields can be separated by any non-number character(s),
+    for example: `-122,46`, `-122, 46`, `-122 46`, `-122;46`.
+
+    Latitude and Longitude fields are removed from the row and converted to
+    a single LatLong column that we pass to dedupe.
+    """
+
+    if not field_definition:
+        return row
+
+    has_latitude_field = False
+    has_longitude_field = False
+
+    latitude = None
+    longitude = None
+
+    for field in field_definition:
+        # Both lat and long in the same field, in either order
+        if field['type'] == 'LatLong' or field['type'] == 'LongLat':
+            try:
+                # Split the field by anything other than the characters
+                # we'd expect to find in a number (0-9, -, .)
+                row[field['field']] = tuple([
+                        float(l) for l in
+                        re.split(r'[^-.0-9]+', row[field['field']])])
+
+                # Flip the order if LongLat was specified
+                if field['type'] == 'LongLat':
+                    row[field['field']] = row[field['field']][::-1]
+
+            except ValueError:  # Thrown if float() fails
+                row[field['field']] = None
+
+        elif field['type'] == 'Latitude':
+            has_latitude_field = True
+            if field['field'] in row:
+                try:
+                    latitude = float(row.pop(field['field']))
+                except ValueError:
+                    latitude = None
+
+        elif field['type'] == 'Longitude' and field['field'] in row:
+            has_longitude_field = True
+            if field['field'] in row:
+                try:
+                    longitude = float(row.pop(field['field']))
+                except ValueError:
+                    longitude = None
+
+    if has_latitude_field and has_longitude_field:
+        if latitude and longitude:
+            row['__LatLong'] = (latitude, longitude)
+        else:
+            row['__LatLong'] = None
+
+    return row
+
+
+def transformLatLongFieldDefinition(field_definition):
+    """
+    Converts the custom LongLat, Latitude, and Longitude field types
+    used in the csvdedupe config to the single LatLong field type that
+    dedupe itself expects.
+
+    Works in concert with csvhelpers.parseLatLongFields()
+    """
+
+    converted_defs = deepcopy(field_definition)
+    lat_long_indicies = []
+
+    for i, field in enumerate(converted_defs):
+        if field['type'] == 'LongLat':
+            field['type'] = 'LatLong'
+        elif field['type'] == 'Latitude' or field['type'] == 'Longitude':
+            lat_long_indicies.append(i)
+
+    if len(lat_long_indicies) == 2:
+        for i in sorted(lat_long_indicies, reverse=True):
+            del converted_defs[i]
+
+        converted_defs.append({
+            'field': '__LatLong',
+            'type': 'LatLong'})
+
+    return converted_defs
 
 
 # ## Writing results

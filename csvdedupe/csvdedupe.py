@@ -66,12 +66,18 @@ class CSVDedupe(csvhelpers.CSVCommand) :
         data_d = {}
         # import the specified CSV file
 
-        data_d = csvhelpers.readData(self.input, self.field_names, delimiter=self.delimiter)
+        data_d = csvhelpers.readData(input_file=self.input,
+                                     field_names=self.field_names,
+                                     field_definition=self.field_definition,
+                                     delimiter=self.delimiter)
+
+        internal_field_definition = csvhelpers.transformLatLongFieldDefinition(
+                self.field_definition)
 
         logging.info('imported %d rows', len(data_d))
 
         # sanity check for provided field names in CSV file
-        for field in self.field_definition:
+        for field in internal_field_definition:
             if field['type'] != 'Interaction':
                 if not field['field'] in data_d[0]:
 
@@ -79,7 +85,7 @@ class CSVDedupe(csvhelpers.CSVCommand) :
                                             field['field'] + "' in input")
 
         logging.info('using fields: %s' % [field['field']
-                                           for field in self.field_definition])
+                                           for field in internal_field_definition])
 
         # If --skip_training has been selected, and we have a settings cache still
         # persisting from the last run, use it in this next run.
@@ -97,7 +103,7 @@ class CSVDedupe(csvhelpers.CSVCommand) :
 
         else:
             # # Create a new deduper object and pass our data model to it.
-            deduper = dedupe.Dedupe(self.field_definition)
+            deduper = dedupe.Dedupe(internal_field_definition)
 
             fields = {variable.field for variable in deduper.data_model.primary_fields}
             unique_d, parents = exact_matches(data_d, fields)
@@ -160,6 +166,7 @@ class CSVDedupe(csvhelpers.CSVCommand) :
                 write_function(clustered_dupes, self.input, out)
             else :
                 write_function(clustered_dupes, self.input, sys.stdout)
+
 
 def exact_matches(data_d, match_fields):
     unique = {}
